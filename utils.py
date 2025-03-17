@@ -1,4 +1,3 @@
-# Helper functions (scraping, sentiment analysis, etc.)
 import requests
 from bs4 import BeautifulSoup
 import nltk
@@ -46,7 +45,7 @@ def analyze_sentiment(text):
     else:
         return "Neutral"
 
-def generate_tts(text, filename="output.mp3"):
+def generate_tts(text, filename="output_hindi.mp3"):
     """
     Converts given text into Hindi speech and saves it as an MP3 file.
     """
