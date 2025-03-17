@@ -4,7 +4,6 @@ from utils import fetch_news, analyze_sentiment, generate_tts, extract_topics
 
 app = FastAPI()
 
-# ✅ Define request model for TTS
 class TTSRequest(BaseModel):
     text: str
 
@@ -31,7 +30,7 @@ def get_news(company: str):
             continue  
 
         sentiment = analyze_sentiment(summary)
-        topics = extract_topics(summary) or ["General News"]  # ✅ Ensures topics are always available
+        topics = extract_topics(summary) or ["General News"]  
 
         sentiment_distribution[sentiment] += 1
 
@@ -45,33 +44,40 @@ def get_news(company: str):
     if not valid_articles:
         return {"error": "No valid news articles found."}
 
-    # ✅ Ensure at least two articles exist for comparison
+    # ✅ Ensure meaningful topic comparison
+    comparisons = []
+    for i in range(len(valid_articles) - 1):
+        article1 = valid_articles[i]
+        article2 = valid_articles[i + 1]
+
+        comparison_text = f"Article {i+1} discusses **{article1['Title']}**, while Article {i+2} covers **{article2['Title']}**."
+
+        if set(article1["Topics"]) & set(article2["Topics"]):  
+            impact_text = "Both articles discuss similar themes, providing additional insights."
+        else:
+            impact_text = "The articles cover different aspects, offering a broader perspective."
+
+        if article1["Sentiment"] == "Positive" and article2["Sentiment"] == "Negative":
+            impact_text += " The first article is positive, but the second raises concerns."
+        elif article1["Sentiment"] == "Negative" and article2["Sentiment"] == "Positive":
+            impact_text += " The first article discusses risks, but the second brings positive developments."
+
+        comparisons.append({"Comparison": comparison_text, "Impact": impact_text})
+
+    # ✅ Handle topic overlaps
     if len(valid_articles) > 1:
         topics_1 = set(valid_articles[0]["Topics"])
         topics_2 = set(valid_articles[1]["Topics"])
 
-        common_topics = topics_1 & topics_2
-        unique_topics_1 = topics_1 - topics_2
-        unique_topics_2 = topics_2 - topics_1
-
-        # ✅ If no common topics, suggest a general category
-        if not common_topics:
-            common_topics = {"Trending Topics"}
-        if not unique_topics_1:
-            unique_topics_1 = {"Miscellaneous Topics"}
-        if not unique_topics_2:
-            unique_topics_2 = {"Diverse Themes"}
+        common_topics = topics_1 & topics_2 or {"Trending Topics"}
+        unique_topics_1 = topics_1 - topics_2 or {"Miscellaneous Topics"}
+        unique_topics_2 = topics_2 - topics_1 or {"Diverse Themes"}
     else:
         common_topics, unique_topics_1, unique_topics_2 = {"Only one article available"}, set(), set()
 
     comparative_sentiment = {
         "Sentiment Distribution": sentiment_distribution,
-        "Coverage Differences": [
-            {
-                "Comparison": f"Article 1 discusses {valid_articles[0]['Title']}, while Article 2 focuses on {valid_articles[1]['Title']}." if len(valid_articles) > 1 else "Only one article available.",
-                "Impact": "The first article highlights business growth, while the second raises challenges." if len(valid_articles) > 1 else "No comparative analysis possible."
-            }
-        ],
+        "Coverage Differences": comparisons,
         "Topic Overlap": {
             "Common Topics": list(common_topics),
             "Unique Topics in Article 1": list(unique_topics_1),
