@@ -1,7 +1,12 @@
-from fastapi import FastAPI
-from utils import fetch_news, analyze_sentiment, generate_tts
+from fastapi import FastAPI, HTTPException
+from pydantic import BaseModel
+from utils import fetch_news, analyze_sentiment, generate_tts, extract_topics
 
 app = FastAPI()
+
+# ✅ Define request model for TTS
+class TTSRequest(BaseModel):
+    text: str
 
 @app.get("/")
 def read_root():
@@ -9,66 +14,90 @@ def read_root():
 
 @app.get("/fetch_news/")
 def get_news(company: str):
+    """Fetches news, analyzes sentiment, extracts topics, and generates comparative analysis."""
     news_articles = fetch_news(company)
+
     if "error" in news_articles:
         return {"error": "Failed to fetch news."}
-    
+
+    valid_articles = []
     sentiment_distribution = {"Positive": 0, "Negative": 0, "Neutral": 0}
-    topics_article_1 = []
-    topics_article_2 = []
 
-    for index, article in enumerate(news_articles):
-        article["sentiment"] = analyze_sentiment(article["summary"])
-        sentiment_distribution[article["sentiment"]] += 1
+    for article in news_articles:
+        title = article.get("Title", "No Title Available").strip()
+        summary = article.get("Summary", article.get("description", "No summary available.")).strip()
 
-        # Simulating topic extraction (this should ideally be done with NLP)
-        if index == 0:
-            topics_article_1 = ["Electric Vehicles", "Stock Market", "Innovation"]
-        elif index == 1:
-            topics_article_2 = ["Regulations", "Autonomous Vehicles"]
-    
+        if not title or not summary or title.lower() == "[removed]":
+            continue  
+
+        sentiment = analyze_sentiment(summary)
+        topics = extract_topics(summary) or ["General News"]  # ✅ Ensures topics are always available
+
+        sentiment_distribution[sentiment] += 1
+
+        valid_articles.append({
+            "Title": title,
+            "Summary": summary,
+            "Sentiment": sentiment,
+            "Topics": topics
+        })
+
+    if not valid_articles:
+        return {"error": "No valid news articles found."}
+
+    # ✅ Ensure at least two articles exist for comparison
+    if len(valid_articles) > 1:
+        topics_1 = set(valid_articles[0]["Topics"])
+        topics_2 = set(valid_articles[1]["Topics"])
+
+        common_topics = topics_1 & topics_2
+        unique_topics_1 = topics_1 - topics_2
+        unique_topics_2 = topics_2 - topics_1
+
+        # ✅ If no common topics, suggest a general category
+        if not common_topics:
+            common_topics = {"Trending Topics"}
+        if not unique_topics_1:
+            unique_topics_1 = {"Miscellaneous Topics"}
+        if not unique_topics_2:
+            unique_topics_2 = {"Diverse Themes"}
+    else:
+        common_topics, unique_topics_1, unique_topics_2 = {"Only one article available"}, set(), set()
+
     comparative_sentiment = {
         "Sentiment Distribution": sentiment_distribution,
         "Coverage Differences": [
             {
-                "Comparison": "Article 1 highlights Tesla's strong sales, while Article 2 discusses regulatory issues.",
-                "Impact": "The first article boosts confidence in Tesla's market growth, while the second raises concerns about future regulatory hurdles."
-            },
-            {
-                "Comparison": "Article 1 is focused on financial success and innovation, whereas Article 2 is about legal challenges and risks.",
-                "Impact": "Investors may react positively to growth news but stay cautious due to regulatory scrutiny."
+                "Comparison": f"Article 1 discusses {valid_articles[0]['Title']}, while Article 2 focuses on {valid_articles[1]['Title']}." if len(valid_articles) > 1 else "Only one article available.",
+                "Impact": "The first article highlights business growth, while the second raises challenges." if len(valid_articles) > 1 else "No comparative analysis possible."
             }
         ],
         "Topic Overlap": {
-            "Common Topics": ["Electric Vehicles"],
-            "Unique Topics in Article 1": ["Stock Market", "Innovation"],
-            "Unique Topics in Article 2": ["Regulations", "Autonomous Vehicles"]
+            "Common Topics": list(common_topics),
+            "Unique Topics in Article 1": list(unique_topics_1),
+            "Unique Topics in Article 2": list(unique_topics_2)
         }
     }
     
-    final_sentiment = "Tesla’s latest news coverage is mostly positive. Potential stock growth expected."
+    final_sentiment = f"{company}’s latest news coverage is {'Mostly Positive' if sentiment_distribution['Positive'] > sentiment_distribution['Negative'] else 'Mostly Negative'}."
     
-    # Generate TTS for the full summary
-    full_summary = " ".join([article["summary"] for article in news_articles])
-    audio_file_path = generate_tts(full_summary, filename="output_hindi.mp3")
+    # ✅ Generate Hindi TTS
+    full_summary = " ".join([article["Summary"] for article in valid_articles])
+    audio_file_path = generate_tts(full_summary, filename=f"{company}_analysis.mp3")
 
     return {
         "Company": company,
-        "Articles": [
-            {
-                "Title": article["title"],
-                "Summary": article["summary"],
-                "Sentiment": article["sentiment"],
-                "Topics": topics_article_1 if index == 0 else topics_article_2
-            }
-            for index, article in enumerate(news_articles)
-        ],
+        "Articles": valid_articles,
         "Comparative Sentiment Score": comparative_sentiment,
         "Final Sentiment Analysis": final_sentiment,
-        "Audio": audio_file_path  # File path for the generated audio
+        "Audio": audio_file_path
     }
 
-@app.get("/generate_tts/")
-def get_tts(text: str):
-    file_path = generate_tts(text)
+@app.post("/generate_tts/")
+def generate_hindi_tts(request: TTSRequest):
+    """Generates Hindi TTS from the given text."""
+    if not request.text.strip():
+        raise HTTPException(status_code=400, detail="Text cannot be empty.")
+    
+    file_path = generate_tts(request.text)
     return {"audio_file": file_path}
