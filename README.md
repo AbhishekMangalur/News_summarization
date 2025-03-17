@@ -35,7 +35,7 @@ news_summarization/
 ## 🛠️ Installation & Setup
 ### 1️⃣ Clone the Repository
 ```bash
-git clone https://github.com/yourusername/news-summarization-tts.git
+git clone https://github.com/AbhishekMangalur/News_summarization
 cd news-summarization-tts
 ```
 
@@ -120,5 +120,5 @@ Feel free to **fork** the repository and submit **pull requests**. Let's improve
 ## 📞 Contact
 For questions or issues, contact:
 📧 Email: `abhimangalur1@gmail.com`
-📌 GitHub: [yourusername](https://github.com/yourusername)
+📌 GitHub: https://github.com/AbhishekMangalur
 
