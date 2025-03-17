@@ -1,0 +1,10 @@
+# List of dependencies
+beautifulsoup4
+requests
+nltk
+transformers
+fastapi
+uvicorn
+gtts
+streamlit
+pandas
