@@ -1,4 +1,4 @@
-# Project documentation
+# Project Documentation
 # News Summarization and Text-to-Speech (TTS) Application
 
 ## 📌 Project Overview
@@ -17,22 +17,22 @@ The tool allows users to input a company name and receive a **structured sentime
 
 ---
 
-## 📂 Project Structure
+## 📚 Project Structure
 ```
 news_summarization/
-│── app.py                 # Streamlit frontend
-│── api.py                 # FastAPI backend
-│── utils.py               # Helper functions (scraping, sentiment analysis, TTS)
-│── requirements.txt       # Dependencies
-│── README.md              # Project documentation
-│── data/                  # Folder to store temporary audio files
-│── templates/             # (Optional) For additional UI customization
-│── static/                # (Optional) CSS, JS files
+── app.py                 # Streamlit frontend
+── api.py                 # FastAPI backend
+── utils.py               # Helper functions (scraping, sentiment analysis, TTS)
+── requirements.txt       # Dependencies
+── README.md              # Project documentation
+── data/                  # Folder to store temporary audio files
+── templates/             # (Optional) For additional UI customization
+── static/                # (Optional) CSS, JS files
 ```
 
 ---
 
-## 🛠️ Installation & Setup
+## 🧐 Installation & Setup
 ### 1️⃣ Clone the Repository
 ```bash
 git clone https://github.com/AbhishekMangalur/News_summarization
@@ -48,17 +48,17 @@ pip install -r requirements.txt
 ```bash
 uvicorn api:app --reload
 ```
-✅ The API will run on **http://127.0.0.1:8000**.
+👉 The API will run on **http://127.0.0.1:8000**.
 
 ### 4️⃣ Start the Frontend (Streamlit)
 ```bash
 streamlit run app.py
 ```
-✅ The UI will open in your browser.
+👉 The UI will open in your browser.
 
 ---
 
-## 📡 API Documentation
+## 📱 API Documentation
 Once the backend is running, visit:
 ```
 http://127.0.0.1:8000/docs
@@ -107,7 +107,7 @@ This page will show all available APIs.
 
 ---
 
-## 📜 License
+## 🐝 License
 This project is open-source and available under the **MIT License**.
 
 ---
@@ -117,8 +117,8 @@ Feel free to **fork** the repository and submit **pull requests**. Let's improve
 
 ---
 
-## 📞 Contact
+## 📱 Contact
 For questions or issues, contact:
-📧 Email: `abhimangalur1@gmail.com`
-📌 GitHub: https://github.com/AbhishekMangalur
+💎 Email: `abhimangalur1@gmail.com`
+📍 GitHub: https://github.com/AbhishekMangalur
 

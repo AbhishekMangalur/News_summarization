@@ -197,7 +197,3 @@ def generate_full_summary(company_name):
         "Final Sentiment Analysis": final_sentiment,
         "Audio": audio_path
     }
-
-# Example usage:
-# result = generate_full_summary("Tesla")
-# print(result)
