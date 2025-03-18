@@ -107,11 +107,6 @@ This page will show all available APIs.
 
 ---
 
-## 🐝 License
-This project is open-source and available under the **MIT License**.
-
----
-
 ## 🤝 Contributing
 Feel free to **fork** the repository and submit **pull requests**. Let's improve this together! 🚀
 
