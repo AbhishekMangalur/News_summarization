@@ -138,9 +138,9 @@ def generate_comparative_analysis(articles):
 
     return comparative_sentiment
 
-def generate_tts(text, filename="output_hindi.mp3"):
+def generate_tts(text, filename="output_hindi.mp3", lang="hi"):
     """
-    Convert given text into Hindi speech and save it as an MP3 file.
+    Convert given text into speech (Hindi by default, or specified language) and save it as an MP3 file.
     """
     save_dir = "data"
     if not os.path.exists(save_dir):
@@ -149,17 +149,23 @@ def generate_tts(text, filename="output_hindi.mp3"):
     file_path = os.path.join(save_dir, filename)
 
     try:
-        tts = gTTS(text=text, lang="hi")
+        tts = gTTS(text=text, lang=lang)
         tts.save(file_path)
-        print(f"✅ Audio saved: {file_path}")
+        try:
+            print(f"✅ Audio saved: {file_path}")
+        except UnicodeEncodeError:
+            print(f"[OK] Audio saved: {file_path}")
         return file_path
     except Exception as e:
-        print(f"❌ Error saving audio: {e}")
+        try:
+            print(f"❌ Error saving audio: {e}")
+        except UnicodeEncodeError:
+            print(f"[ERROR] Error saving audio: {e}")
         return None
 
 def generate_full_summary(company_name):
     """
-    Fetch news, perform sentiment analysis, generate comparative analysis, and create Hindi TTS.
+    Fetch news, perform sentiment analysis, generate comparative analysis, and create Hindi & Kannada TTS.
     """
     articles = fetch_news(company_name)
 
@@ -185,15 +191,24 @@ def generate_full_summary(company_name):
     try:
         translated_text = GoogleTranslator(source="auto", target="hi").translate(hindi_text)
     except Exception as e:
-        print(f"Translation failed: {e}")
+        print(f"Hindi translation failed: {e}")
         translated_text = "अनुवाद उपलब्ध नहीं है।"
 
-    audio_path = generate_tts(translated_text, f"{company_name}_analysis.mp3")
+    audio_path = generate_tts(translated_text, f"{company_name}_analysis.mp3", lang="hi")
+
+    try:
+        translated_kannada_text = GoogleTranslator(source="auto", target="kn").translate(hindi_text)
+    except Exception as e:
+        print(f"Kannada translation failed: {e}")
+        translated_kannada_text = "ಅನುವಾದ ಲಭ್ಯವಿಲ್ಲ."
+
+    audio_kannada_path = generate_tts(translated_kannada_text, f"{company_name}_analysis_kannada.mp3", lang="kn")
 
     return {
         "Company": company_name,
         "Articles": articles,
         "Comparative Analysis": comparative_analysis,
         "Final Sentiment Analysis": final_sentiment,
-        "Audio": audio_path
+        "Audio": audio_path,
+        "Audio_Kannada": audio_kannada_path
     }

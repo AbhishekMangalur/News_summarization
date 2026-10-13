@@ -2,7 +2,7 @@
 # News Summarization and Text-to-Speech (TTS) Application
 
 ## 📌 Project Overview
-This project is a **web-based application** that extracts key details from multiple news articles related to a given company, performs **sentiment analysis**, conducts a **comparative analysis**, and generates a **Hindi Text-to-Speech (TTS)** output.
+This project is a **web-based application** that extracts key details from multiple news articles related to a given company, performs **sentiment analysis**, conducts a **comparative analysis**, and generates **Hindi & Kannada Text-to-Speech (TTS)** audio output.
 
 The tool allows users to input a company name and receive a **structured sentiment report along with an audio summary**.
 
@@ -10,7 +10,7 @@ The tool allows users to input a company name and receive a **structured sentime
 - **News Extraction:** Fetches at least 10 unique news articles related to the given company.
 - **Sentiment Analysis:** Analyzes each article as **Positive, Negative, or Neutral**.
 - **Comparative Analysis:** Highlights sentiment variations across multiple articles.
-- **Text-to-Speech (TTS) in Hindi:** Converts the news summary into **Hindi speech**.
+- **Text-to-Speech (TTS) in Hindi & Kannada:** Converts the news summary into **Hindi & Kannada speech**.
 - **User Interface (UI):** Simple and interactive UI using **Streamlit**.
 - **API-Based Communication:** The frontend communicates with the backend via **FastAPI APIs**.
 - **Deployment:** Deployed on **Hugging Face Spaces**.

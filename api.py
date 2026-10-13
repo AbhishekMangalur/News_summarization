@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 from utils import fetch_news, analyze_sentiment, generate_tts, extract_topics
@@ -6,6 +7,8 @@ app = FastAPI()
 
 class TTSRequest(BaseModel):
     text: str
+    lang: str = "hi"
+    filename: Optional[str] = None
 
 @app.get("/")
 def read_root():
@@ -100,10 +103,13 @@ def get_news(company: str):
     }
 
 @app.post("/generate_tts/")
-def generate_hindi_tts(request: TTSRequest):
-    """Generates Hindi TTS from the given text."""
+def generate_tts_endpoint(request: TTSRequest):
+    """Generates TTS from the given text in Hindi or requested language (e.g., Kannada)."""
     if not request.text.strip():
         raise HTTPException(status_code=400, detail="Text cannot be empty.")
     
-    file_path = generate_tts(request.text)
+    filename = request.filename or (f"output_{request.lang}.mp3" if request.lang != "hi" else "output_hindi.mp3")
+    file_path = generate_tts(request.text, filename=filename, lang=request.lang)
+    if not file_path:
+        raise HTTPException(status_code=500, detail="Failed to generate audio.")
     return {"audio_file": file_path}

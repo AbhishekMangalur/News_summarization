@@ -1,8 +1,26 @@
 import streamlit as st
 import requests
+import inspect
+import asyncio
+import concurrent.futures
 from googletrans import Translator
 
 translator = Translator()
+
+def translate_text(text, dest):
+    """Safely translate text, supporting both sync (4.0.0-rc1) and async (4.0.2+) googletrans."""
+    res = translator.translate(text, dest=dest)
+    if inspect.isawaitable(res):
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop and loop.is_running():
+            with concurrent.futures.ThreadPoolExecutor() as pool:
+                res = pool.submit(lambda: asyncio.run(translator.translate(text, dest=dest))).result()
+        else:
+            res = asyncio.run(res)
+    return res.text
 
 st.title("📢 News Summarization & Sentiment Analysis")
 st.sidebar.header("🔍 Enter a Company Name")
@@ -62,15 +80,35 @@ if st.sidebar.button("Fetch News"):
             st.write(f"**Unique in Article 2:** {', '.join(unique_2)}")
 
             # ✅ Translate full summary to Hindi
-            translated_text = translator.translate(full_summary, dest="hi").text
+            try:
+                translated_text = translate_text(full_summary, dest="hi")
 
-            # ✅ Generate Hindi Audio Summary using a POST request
-            tts_response = requests.post("http://127.0.0.1:8000/generate_tts/", json={"text": translated_text})
+                # ✅ Generate Hindi Audio Summary using a POST request
+                tts_response = requests.post("http://127.0.0.1:8000/generate_tts/", json={"text": translated_text, "lang": "hi"})
 
-            if tts_response.status_code == 200:
-                audio_file = tts_response.json()["audio_file"]
-                st.write("### 🔊 Listen to Summary in Hindi")
-                st.audio(audio_file, format="audio/mp3")
+                if tts_response.status_code == 200:
+                    audio_file = tts_response.json()["audio_file"]
+                    st.write("### 🔊 Listen to Summary in Hindi")
+                    st.audio(audio_file, format="audio/mp3")
+            except Exception as e:
+                st.error(f"❌ Failed to generate Hindi audio summary: {e}")
+
+            # ✅ Translate full summary to Kannada
+            try:
+                translated_kannada_text = translate_text(full_summary, dest="kn")
+
+                # ✅ Generate Kannada Audio Summary using a POST request
+                tts_kannada_response = requests.post(
+                    "http://127.0.0.1:8000/generate_tts/",
+                    json={"text": translated_kannada_text, "lang": "kn", "filename": "output_kannada.mp3"}
+                )
+
+                if tts_kannada_response.status_code == 200:
+                    kannada_audio_file = tts_kannada_response.json()["audio_file"]
+                    st.write("### 🔊 Listen to Summary in Kannada")
+                    st.audio(kannada_audio_file, format="audio/mp3")
+            except Exception as e:
+                st.error(f"❌ Failed to generate Kannada audio summary: {e}")
 
             # ✅ Display Final Sentiment Analysis
             st.write("### 🔥 Final Sentiment Analysis")
