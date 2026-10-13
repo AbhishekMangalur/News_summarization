@@ -5,36 +5,22 @@ import asyncio
 import concurrent.futures
 from googletrans import Translator
 
-# Your deployed FastAPI backend URL
-BACKEND_URL = "https://news-summarization-wrk4.onrender.com"
-
 translator = Translator()
 
-
 def translate_text(text, dest):
-    """Translate text using googletrans."""
+    """Safely translate text, supporting both sync (4.0.0-rc1) and async (4.0.2+) googletrans."""
     res = translator.translate(text, dest=dest)
-
     if inspect.isawaitable(res):
         try:
-            asyncio.get_running_loop()
+            loop = asyncio.get_running_loop()
         except RuntimeError:
-            res = asyncio.run(res)
-        else:
-            # Run the coroutine in a separate thread if a loop is active
-            def run_translation():
-                async def translate():
-                    async with Translator() as async_translator:
-                        return await async_translator.translate(
-                            text, dest=dest
-                        )
-                return asyncio.run(translate())
-
+            loop = None
+        if loop and loop.is_running():
             with concurrent.futures.ThreadPoolExecutor() as pool:
-                res = pool.submit(run_translation).result()
-
+                res = pool.submit(lambda: asyncio.run(translator.translate(text, dest=dest))).result()
+        else:
+            res = asyncio.run(res)
     return res.text
-
 
 st.title("📢 News Summarization & Sentiment Analysis")
 st.sidebar.header("🔍 Enter a Company Name")
@@ -42,118 +28,91 @@ st.sidebar.header("🔍 Enter a Company Name")
 company_name = st.sidebar.text_input("Company Name", "Tesla")
 
 if st.sidebar.button("Fetch News"):
-    try:
-        with st.spinner("Fetching news..."):
-            response = requests.get(
-                f"{BACKEND_URL}/fetch_news/",
-                params={"company": company_name},
-                timeout=120,
-            )
-            response.raise_for_status()
-            data = response.json()
+    response = requests.get(f"https://news-summarization-wrk4.onrender.com/fetch_news/?company={company_name}")
+
+    if response.status_code == 200:
+        data = response.json()
 
         if "error" in data:
             st.error(f"❌ {data['error']}")
-            st.stop()
+        else:
+            st.write(f"### News for {data['Company']}")
 
-        st.write(f"### News for {data['Company']}")
+            full_summary = ""
 
-        full_summary = ""
+            for article in data["Articles"]:
+                title = article.get("Title", "No Title Available")
+                summary = article.get("Summary", "No summary available.")
+                sentiment = article.get("Sentiment", "Unknown")
+                topics = article.get("Topics", ["General News"])  # ✅ Ensures topics are always present
 
-        for article in data["Articles"]:
-            title = article.get("Title", "No Title Available")
-            summary = article.get("Summary", "No summary available.")
-            sentiment = article.get("Sentiment", "Unknown")
-            topics = article.get("Topics", ["General News"])
+                st.subheader(title)
+                st.write(summary)
+                st.write(f"**🟢 Sentiment:** {sentiment}")
 
-            st.subheader(title)
-            st.write(summary)
-            st.write(f"**🟢 Sentiment:** {sentiment}")
+                if topics:
+                    st.write(f"**📌 Topics:** {', '.join(topics)}")
 
-            if topics:
-                st.write(f"**📌 Topics:** {', '.join(topics)}")
+                full_summary += summary + " "
 
-            full_summary += summary + " "
+            # ✅ Display Sentiment Distribution
+            st.write("### 📊 Sentiment Distribution")
+            sentiment_dist = data["Comparative Sentiment Score"]["Sentiment Distribution"]
+            st.write(f"**Positive:** {sentiment_dist['Positive']} | **Negative:** {sentiment_dist['Negative']} | **Neutral:** {sentiment_dist['Neutral']}")
 
-        # Sentiment Distribution
-        st.write("### 📊 Sentiment Distribution")
-        sentiment_dist = data["Comparative Sentiment Score"]["Sentiment Distribution"]
+            # ✅ Display Coverage Differences
+            st.write("### ⚖️ Coverage Differences")
+            for diff in data["Comparative Sentiment Score"]["Coverage Differences"]:
+                st.write(f"**🆚 Comparison:** {diff['Comparison']}")
+                st.write(f"**📉 Impact:** {diff['Impact']}")
+                st.markdown("---")
 
-        st.write(
-            f"**Positive:** {sentiment_dist['Positive']} | "
-            f"**Negative:** {sentiment_dist['Negative']} | "
-            f"**Neutral:** {sentiment_dist['Neutral']}"
-        )
+            # ✅ Display Topic Overlap (Now handles empty cases properly)
+            st.write("### 🔍 Topic Overlap")
+            topic_overlap = data["Comparative Sentiment Score"]["Topic Overlap"]
 
-        # Coverage Differences
-        st.write("### ⚖️ Coverage Differences")
+            common_topics = topic_overlap.get("Common Topics", ["Trending Topics"])
+            unique_1 = topic_overlap.get("Unique Topics in Article 1", ["Miscellaneous Topics"])
+            unique_2 = topic_overlap.get("Unique Topics in Article 2", ["Diverse Themes"])
 
-        for diff in data["Comparative Sentiment Score"]["Coverage Differences"]:
-            st.write(f"**🆚 Comparison:** {diff['Comparison']}")
-            st.write(f"**📉 Impact:** {diff['Impact']}")
-            st.markdown("---")
+            st.write(f"**Common Topics:** {', '.join(common_topics)}")
+            st.write(f"**Unique in Article 1:** {', '.join(unique_1)}")
+            st.write(f"**Unique in Article 2:** {', '.join(unique_2)}")
 
-        # Topic Overlap
-        st.write("### 🔍 Topic Overlap")
-        topic_overlap = data["Comparative Sentiment Score"]["Topic Overlap"]
+            # ✅ Translate full summary to Hindi
+            try:
+                translated_text = translate_text(full_summary, dest="hi")
 
-        common_topics = topic_overlap.get("Common Topics", ["Trending Topics"])
-        unique_1 = topic_overlap.get("Unique Topics in Article 1", ["Miscellaneous Topics"])
-        unique_2 = topic_overlap.get("Unique Topics in Article 2", ["Diverse Themes"])
+                # ✅ Generate Hindi Audio Summary using a POST request
+                tts_response = requests.post("https://news-summarization-wrk4.onrender.com/generate_tts/", json={"text": translated_text, "lang": "hi"})
 
-        st.write(f"**Common Topics:** {', '.join(common_topics)}")
-        st.write(f"**Unique in Article 1:** {', '.join(unique_1)}")
-        st.write(f"**Unique in Article 2:** {', '.join(unique_2)}")
+                if tts_response.status_code == 200:
+                    audio_file = tts_response.json()["audio_file"]
+                    st.write("### 🔊 Listen to Summary in Hindi")
+                    st.audio(audio_file, format="audio/mp3")
+            except Exception as e:
+                st.error(f"❌ Failed to generate Hindi audio summary: {e}")
 
-        # Hindi Audio Summary
-        try:
-            with st.spinner("Generating Hindi audio summary..."):
-                hindi_text = translate_text(full_summary, dest="hi")
+            # ✅ Translate full summary to Kannada
+            try:
+                translated_kannada_text = translate_text(full_summary, dest="kn")
 
-                tts_response = requests.post(
-                    f"{BACKEND_URL}/generate_tts/",
-                    json={"text": hindi_text, "lang": "hi"},
-                    timeout=120,
-                )
-                tts_response.raise_for_status()
-
-                audio_file = tts_response.json()["audio_file"]
-
-                st.write("### 🔊 Listen to Summary in Hindi")
-                st.audio(audio_file, format="audio/mp3")
-
-        except Exception as e:
-            st.error(f"❌ Failed to generate Hindi audio summary: {e}")
-
-        # Kannada Audio Summary
-        try:
-            with st.spinner("Generating Kannada audio summary..."):
-                kannada_text = translate_text(full_summary, dest="kn")
-
+                # ✅ Generate Kannada Audio Summary using a POST request
                 tts_kannada_response = requests.post(
-                    f"{BACKEND_URL}/generate_tts/",
-                    json={
-                        "text": kannada_text,
-                        "lang": "kn",
-                        "filename": "output_kannada.mp3",
-                    },
-                    timeout=120,
+                    "https://news-summarization-wrk4.onrender.com/generate_tts/",
+                    json={"text": translated_kannada_text, "lang": "kn", "filename": "output_kannada.mp3"}
                 )
-                tts_kannada_response.raise_for_status()
 
-                kannada_audio_file = tts_kannada_response.json()["audio_file"]
+                if tts_kannada_response.status_code == 200:
+                    kannada_audio_file = tts_kannada_response.json()["audio_file"]
+                    st.write("### 🔊 Listen to Summary in Kannada")
+                    st.audio(kannada_audio_file, format="audio/mp3")
+            except Exception as e:
+                st.error(f"❌ Failed to generate Kannada audio summary: {e}")
 
-                st.write("### 🔊 Listen to Summary in Kannada")
-                st.audio(kannada_audio_file, format="audio/mp3")
+            # ✅ Display Final Sentiment Analysis
+            st.write("### 🔥 Final Sentiment Analysis")
+            st.write(f"**{data['Final Sentiment Analysis']}**")
 
-        except Exception as e:
-            st.error(f"❌ Failed to generate Kannada audio summary: {e}")
-
-        # Final Sentiment Analysis
-        st.write("### 🔥 Final Sentiment Analysis")
-        st.write(f"**{data['Final Sentiment Analysis']}**")
-
-    except requests.exceptions.RequestException as e:
-        st.error(f"❌ Backend request failed: {e}")
-    except (ValueError, KeyError) as e:
-        st.error(f"❌ Invalid response from backend: {e}")
+    else:
+        st.error("❌ Failed to fetch news!")
