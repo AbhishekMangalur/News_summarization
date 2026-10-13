@@ -7,8 +7,9 @@ from gtts import gTTS
 from deep_translator import GoogleTranslator
 
 # ✅ Download necessary NLTK data
-nltk.download("vader_lexicon")
-nltk.download("punkt")
+nltk.download("vader_lexicon", quiet=True)
+nltk.download("punkt", quiet=True)
+nltk.download("punkt_tab", quiet=True)
 
 # Initialize sentiment analyzer
 sia = SentimentIntensityAnalyzer()
